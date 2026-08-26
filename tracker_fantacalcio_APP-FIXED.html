@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Fantacalcio">
+    <meta name="theme-color" content="#667eea">
+    <meta name="description" content="Tracker Asta Fantacalcio 2026-27 con statistiche e gestione rosa">
+    <link rel="manifest" href="./manifest.json">>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23667eea' width='192' height='192'/><text x='50%' y='50%' font-size='90' fill='white' text-anchor='middle' dy='.3em' font-weight='bold'>⚽</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%23667eea' width='192' height='192'/><text x='50%' y='50%' font-size='90' fill='white' text-anchor='middle' dy='.3em' font-weight='bold'>⚽</text></svg>">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/jszip.min.js"></script>
+    <title>Tracker Fantacalcio 2026-27</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 12px 12px 0 0;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+            font-weight: 700;
+        }
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+            overflow-x: auto;
+            flex-shrink: 0;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab {
+            flex: 0 0 auto;
+            min-width: 100px;
+            padding: 14px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-size: 15px;
+            white-space: nowrap;
+        }
+        .tab:active {
+            background: #e8e9ea;
+        }
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+        }
+        .controls {
+            padding: 12px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+        .search-box {
+            flex: 1;
+            min-width: 120px;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+        .filter-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .filter-group select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 15px;
+            background: white;
+            cursor: pointer;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 12px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.2s;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        button:active {
+            background: #764ba2;
+            transform: scale(0.98);
+        }
+        button.danger {
+            background: #d32f2f;
+        }
+        button.danger:active {
+            background: #b71c1c;
+        }
+        button.add-btn {
+            background: #0097a7;
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+        .budget-info {
+            background: #e8f4f8;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        .budget-info span {
+            color: #667eea;
+            font-size: 22px;
+        }
+        .table-wrapper {
+            overflow-x: auto;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:active {
+            background: #f0f0f0;
+        }
+        .player-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        .team {
+            color: #667eea;
+            font-weight: 500;
+            font-size: 12px;
+        }
+        .role {
+            background: #f0f0f0;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
+        }
+        .role.p { background: #c8e6c9; }
+        .role.d { background: #bbdefb; }
+        .role.c { background: #fff9c4; }
+        .role.a { background: #ffccbc; }
+        .price-input, .status-select {
+            width: 60px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .diff {
+            font-weight: 600;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 13px;
+        }
+        .diff.positive { color: #d32f2f; background: #ffebee; }
+        .diff.negative { color: #388e3c; background: #e8f5e9; }
+        .diff.zero { color: #1565c0; background: #e3f2fd; }
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .badge.slavo { background: #e0e7ff; color: #5e35b1; }
+        .badge.ex-milan { background: #ffebee; color: #c62828; }
+        .badge.atalanta { background: #e8f5e9; color: #1b5e20; }
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.3);
+            max-width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-content h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .swap-list {
+            list-style: none;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .swap-list li {
+            padding: 14px;
+            margin: 8px 0;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+        .swap-list li:active {
+            background: #667eea;
+            color: white;
+        }
+        .settings-panel {
+            padding: 15px;
+            overflow-y: auto;
+        }
+        .settings-item {
+            margin-bottom: 16px;
+            padding: 14px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .settings-item label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .settings-item small {
+            display: block;
+            font-size: 13px;
+            color: #999;
+            margin-top: 6px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            padding: 12px;
+            overflow-y: auto;
+        }
+        @media (min-width: 600px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        .stat-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: white;
+        }
+        .stat-header {
+            font-weight: 600;
+            font-size: 16px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .stat-row:last-child {
+            border-bottom: none;
+        }
+        .alt-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            padding: 12px;
+            overflow-y: auto;
+        }
+        .alt-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 14px;
+            background: white;
+        }
+        .alt-card h4 {
+            color: #333;
+            margin-bottom: 6px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .alt-info {
+            font-size: 13px;
+            color: #666;
+            margin: 4px 0;
+        }
+        .footer {
+            padding: 12px;
+            background: #f8f9fa;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+            border-top: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+        @media (max-width: 480px) {
+            .header h1 { font-size: 16px; }
+            .tab { min-width: 70px; font-size: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚽ FANTACALCIO 2026-27</h1>
+            <p>Tracker PRO | Budget 300 crediti</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab(0)">🎯 Rosa</div>
+            <div class="tab" onclick="switchTab(1)">📈 Stats</div>
+            <div class="tab" onclick="switchTab(2)">🔄 Alt</div>
+            <div class="tab" onclick="switchTab(3)">⚙️ Menu</div>
+        </div>
+
+        <div class="content-area">
+            <!-- TAB 0: ROSA -->
+            <div class="tab-content active" id="tab0">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="🔍 Cerca...">
+                    </div>
+                    <div class="filter-group">
+                        <select id="roleFilter">
+                            <option value="">Ruolo</option>
+                            <option value="P">P</option>
+                            <option value="D">D</option>
+                            <option value="C">C</option>
+                            <option value="A">A</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="budget-info">
+                    Spesi: <span id="budgetSpent">0</span> | Rimasti: <span id="budgetRemaining">300</span>
+                </div>
+
+                <div class="table-wrapper">
+                    <table id="playersTable">
+                        <thead>
+                            <tr>
+                                <th>Giocatore</th>
+                                <th>Sq.</th>
+                                <th>R</th>
+                                <th>Base</th>
+                                <th>Pag.</th>
+                                <th>Δ</th>
+                                <th>Stato</th>
+                                <th>Az.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- TAB 1: STATISTICHE -->
+            <div class="tab-content" id="tab1">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchStatsInput" placeholder="🔍 Cerca...">
+                    </div>
+                </div>
+                <div class="stats-grid" id="statsContainer"></div>
+            </div>
+
+            <!-- TAB 2: ALTERNATIVE -->
+            <div class="tab-content" id="tab2">
+                <div class="controls">
+                    <div class="search-box">
+                        <input type="text" id="searchAltInput" placeholder="🔍 Cerca alt...">
+                    </div>
+                </div>
+                <div id="alternativesContainer"></div>
+            </div>
+
+            <!-- TAB 3: MENU -->
+            <div class="tab-content" id="tab3">
+                <div class="settings-panel">
+                    <div class="settings-item">
+                        <button id="installBtn" onclick="installApp()" style="width: 100%; background: #388e3c; margin-bottom: 8px; font-size: 16px; padding: 14px; font-weight: bold;">
+                            📱 INSTALLA APP
+                        </button>
+                        <small style="display: block; margin-top: 8px;"><strong>🤖 Android (Chrome):</strong><br>✅ Clicca il bottone sopra<br>oppure<br>✅ Clicca i 3 puntini ⋮ (menu Chrome) → "Installa app"<br><br><strong>ℹ️ Nota:</strong> Potrebbe chiedere conferma - clicca SÌ/Installa</small>
+                    </div>
+
+                    <div class="settings-item">
+                        <label>📥 Importa Excel</label>
+                        <input type="file" id="excelFileInput" accept=".xlsx,.xls">
+                        <small>💡 Se dice "XLSX not defined":<br>✅ Connettiti a WiFi<br>✅ Ricarica la pagina (F5)<br>✅ Riprova l'import</small>
+                    </div>
+
+                    <div class="settings-item">
+                        <label>💾 Importa Backup</label>
+                        <input type="file" id="fileInput" accept=".json">
+                        <small>Ripristina dati precedenti</small>
+                    </div>
+
+                    <div class="settings-item">
+                        <button onclick="exportData()" style="width: 100%; margin-bottom: 8px;">📤 Esporta</button>
+                        <small>Scarica backup JSON</small>
+                    </div>
+
+                    <div class="settings-item">
+                        <button class="danger" onclick="if(confirm('Cancellare tutto?')) resetAll()" style="width: 100%;">🗑️ Reset</button>
+                    </div>
+
+                    <div class="settings-item">
+                        <p style="font-size: 14px; margin: 10px 0;"><strong>ℹ️ Info:</strong></p>
+                        <p style="font-size: 12px;">📍 Rosa: 25 | 🎯 Budget: 300 | 🔴 Atalanta: 8 | 🇷🇸 Slavi: 4 | ⚽ Ex Milan: 4</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            💡 100% offline | Auto-save | v2.0
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div id="swapModal" class="modal">
+        <div class="modal-content">
+            <h2 id="swapModalTitle">Scegli chi sostituire</h2>
+            <ul class="swap-list" id="swapList"></ul>
+            <button class="danger" onclick="closeSwapModal()" style="width: 100%; margin-top: 12px;">Annulla</button>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            const sw = `
+                self.addEventListener('install', e => {
+                    console.log('🔧 ServiceWorker installato');
+                    self.skipWaiting();
+                });
+                
+                self.addEventListener('activate', e => {
+                    console.log('✅ ServiceWorker attivo');
+                    self.clients.claim();
+                });
+                
+                self.addEventListener('fetch', e => {
+                    e.respondWith(
+                        caches.match(e.request)
+                            .then(response => response || fetch(e.request))
+                            .catch(() => null)
+                    );
+                });
+            `;
+            const blob = new Blob([sw], { type: 'text/javascript' });
+            const swUrl = URL.createObjectURL(blob);
+            navigator.serviceWorker.register(swUrl).catch(e => {
+                console.log('ServiceWorker non disponibile (normale se offline)', e);
+            });
+        }
+
+        const statsData = {
+            "Marco Carnesecchi": { quotazione_attuale: 16, fvm: 52 },
+            "Marco Sportiello": { quotazione_attuale: 1, fvm: 1 },
+            "Paolo Vismara": { quotazione_attuale: 1, fvm: 1 },
+            "Pierre Kalulu": { quotazione_attuale: 13, fvm: 46 },
+            "Tiago Gabriel": { quotazione_attuale: 9, fvm: 20 },
+            "Antonino Gallo": { quotazione_attuale: 6, fvm: 13 },
+            "Samuele Birindelli": { quotazione_attuale: 4, fvm: 12 },
+            "Joël Schingtienne": { quotazione_attuale: 3, fvm: 10 },
+            "Patrick Cutrone": { quotazione_attuale: 9, fvm: 33 },
+            "Nicolò Barella": { quotazione_attuale: 17, fvm: 80 },
+            "Ederson": { quotazione_attuale: 12, fvm: 49 },
+            "Lazar Samardzic": { quotazione_attuale: 12, fvm: 41 },
+            "Mario Pasalic": { quotazione_attuale: 9, fvm: 24 },
+            "Stanislav Lobotka": { quotazione_attuale: 8, fvm: 22 },
+            "Bryan Cristante": { quotazione_attuale: 8, fvm: 29 },
+            "Tommaso Pobega": { quotazione_attuale: 6, fvm: 13 },
+            "Adrian Przyborek": { quotazione_attuale: 1, fvm: 5 },
+            "Marcus Thuram": { quotazione_attuale: 28, fvm: 263 },
+            "Anastasios Douvikas": { quotazione_attuale: 21, fvm: 170 },
+            "Nikola Krstovic": { quotazione_attuale: 19, fvm: 100 },
+            "Paulo Dybala": { quotazione_attuale: 15, fvm: 95 },
+            "Lorenzo Colombo": { quotazione_attuale: 11, fvm: 55 }
+        };
+
+        const players = [
+            { name: "Marco Carnesecchi", team: "Atalanta", role: "P", base: 14, badges: ["atalanta"] },
+            { name: "Marco Sportiello", team: "Atalanta", role: "P", base: 8, badges: ["atalanta"] },
+            { name: "Paolo Vismara", team: "Atalanta", role: "P", base: 5, badges: ["atalanta"] },
+            { name: "Pierre Kalulu", team: "Juventus", role: "D", base: 16, badges: ["ex-milan"] },
+            { name: "Danilo Veiga", team: "Lecce", role: "D", base: 8, badges: [] },
+            { name: "Tiago Gabriel", team: "Lecce", role: "D", base: 7, badges: [] },
+            { name: "Adrian Przyborek", team: "Lazio", role: "D", base: 9, badges: ["slavo"] },
+            { name: "Andrea Carboni", team: "Monza", role: "D", base: 9, badges: [] },
+            { name: "Samuele Birindelli", team: "Monza", role: "D", base: 12, badges: [] },
+            { name: "Antonino Gallo", team: "Lecce", role: "D", base: 8, badges: [] },
+            { name: "Joël Schingtienne", team: "Venezia", role: "D", base: 5, badges: [] },
+            { name: "Nicolò Barella", team: "Inter", role: "C", base: 24, badges: [] },
+            { name: "Lazar Samardzic", team: "Atalanta", role: "C", base: 22, badges: ["slavo", "atalanta"] },
+            { name: "Stanislav Lobotka", team: "Napoli", role: "C", base: 15, badges: ["slavo"] },
+            { name: "Tommaso Pobega", team: "Bologna", role: "C", base: 12, badges: ["ex-milan"] },
+            { name: "Ederson", team: "Atalanta", role: "C", base: 12, badges: ["atalanta"] },
+            { name: "Mario Pasalic", team: "Atalanta", role: "C", base: 11, badges: ["slavo", "atalanta"] },
+            { name: "Kike Pérez", team: "Venezia", role: "C", base: 10, badges: [] },
+            { name: "Bryan Cristante", team: "Roma", role: "C", base: 5, badges: [] },
+            { name: "Marcus Thuram", team: "Inter", role: "A", base: 29, badges: [] },
+            { name: "Nikola Krstovic", team: "Atalanta", role: "A", base: 19, badges: ["slavo", "atalanta"] },
+            { name: "Anastasios Douvikas", team: "Como", role: "A", base: 18, badges: [] },
+            { name: "Patrick Cutrone", team: "Monza", role: "A", base: 14, badges: ["ex-milan"] },
+            { name: "Paulo Dybala", team: "Roma", role: "A", base: 14, badges: [] },
+            { name: "Lorenzo Colombo", team: "Genoa", role: "A", base: 11, badges: ["ex-milan"] }
+        ];
+
+        const alternatives = [
+            { name: "Filip Stankovic", team: "Venezia", role: "P", base: 9 },
+            { name: "Alex Meret", team: "Napoli", role: "P", base: 8 },
+            { name: "Juan Musso", team: "Atalanta", role: "P", base: 7 },
+            { name: "Federico Dimarco", team: "Inter", role: "D", base: 43 },
+            { name: "Alessandro Bastoni", team: "Inter", role: "D", base: 35 },
+            { name: "Gleison Bremer", team: "Juventus", role: "D", base: 34 },
+            { name: "Wesley", team: "Fiorentina", role: "D", base: 36 },
+            { name: "Gianluca Mancini", team: "Roma", role: "D", base: 33 },
+            { name: "Hakan Calhanoglu", team: "Inter", role: "C", base: 26 },
+            { name: "Scott McTominay", team: "Napoli", role: "C", base: 25 },
+            { name: "Federico Chiesa", team: "Fiorentina", role: "C", base: 22 },
+            { name: "Gianluca Gaetano", team: "Atalanta", role: "C", base: 19 },
+            { name: "Donyell Malen", team: "Roma", role: "A", base: 34 },
+            { name: "Moise Kean", team: "Fiorentina", role: "A", base: 25 },
+            { name: "Rasmus Hojlund", team: "Napoli", role: "A", base: 28 },
+            { name: "Gonçalo Ramos", team: "Milan", role: "A", base: 27 }
+        ];
+
+        let playersData = [...players];
+        let alternativesData = [...alternatives];
+
+        function loadData() {
+            const saved = localStorage.getItem("fantacalcioData");
+            if (saved) {
+                const data = JSON.parse(saved);
+                playersData = players.map(p => ({
+                    ...p,
+                    paid: data[p.name]?.paid || 0,
+                    status: data[p.name]?.status || "non-preso"
+                }));
+            } else {
+                playersData = players.map(p => ({ ...p, paid: 0, status: "non-preso" }));
+            }
+        }
+
+        function saveData() {
+            const data = {};
+            playersData.forEach(p => {
+                data[p.name] = { paid: p.paid || 0, status: p.status || "non-preso" };
+            });
+            localStorage.setItem("fantacalcioData", JSON.stringify(data));
+        }
+
+        function exportData() {
+            const data = {};
+            playersData.forEach(p => {
+                data[p.name] = { paid: p.paid || 0, status: p.status || "non-preso" };
+            });
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `fantacalcio_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    playersData = players.map(p => ({
+                        ...p,
+                        paid: data[p.name]?.paid || 0,
+                        status: data[p.name]?.status || "non-preso"
+                    }));
+                    saveData();
+                    renderTable();
+                    alert("✅ Importato!");
+                } catch (err) {
+                    alert("❌ Errore!");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function importExcelStats(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Verifica se XLSX è disponibile
+            if (typeof XLSX === 'undefined') {
+                alert('❌ Libreria Excel non disponibile.\n\n⚠️ SOLUZIONE:\n1. Apri il file su una rete WiFi\n2. Ricarica la pagina (F5)\n3. Riprova l\'import\n\nOPPURE:\nDigita i dati manualmente nella tabella.');
+                return;
+            }
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    console.log("📊 Lettura Excel in corso...");
+                    const workbook = XLSX.read(e.target.result, { type: 'array' });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    console.log("📋 Dati letti:", data.length, "righe");
+                    
+                    if (data.length < 3) {
+                        alert("❌ File Excel vuoto o non valido!");
+                        return;
+                    }
+                    
+                    let imported = 0;
+                    let notFound = [];
+                    
+                    // Inizia da riga 2 (dopo intestazione e header)
+                    for (let i = 2; i < data.length; i++) {
+                        const row = data[i];
+                        if (!row || !row[3]) continue;
+                        
+                        const nome = row[3].toString().trim().toLowerCase();
+                        if (nome.length < 2) continue;
+                        
+                        let found = false;
+                        
+                        // Cerca il giocatore nella lista
+                        for (const [playerName, playerStats] of Object.entries(statsData)) {
+                            const pn = playerName.toLowerCase();
+                            
+                            if (pn === nome || pn.includes(nome) || nome.includes(pn.split(' ')[0])) {
+                                statsData[playerName] = {
+                                    quotazione_attuale: row[5] || 0,
+                                    quotazione_iniziale: row[6] || 0,
+                                    differenza: row[7] || 0,
+                                    fvm: row[11] || 0
+                                };
+                                imported++;
+                                found = true;
+                                console.log(`✅ ${playerName}: Q=${row[5]}, FVM=${row[11]}`);
+                                break;
+                            }
+                        }
+                        
+                        if (!found && nome.length > 2) {
+                            notFound.push(row[3]);
+                        }
+                    }
+                    
+                    renderTable();
+                    renderStats();
+                    
+                    let msg = `✅ ${imported} giocatori aggiornati con quotazioni!`;
+                    if (imported === 0) {
+                        msg = "⚠️ Nessun giocatore trovato. Verifica il file Excel!";
+                    } else if (notFound.length > 0) {
+                        msg += `\n\n⚠️ Non trovati (${notFound.length}): ${notFound.slice(0,5).join(', ')}${notFound.length > 5 ? '...' : ''}`;
+                    }
+                    alert(msg);
+                    
+                } catch (err) {
+                    console.error("❌ ERRORE COMPLETO:", err);
+                    alert("❌ Errore nella lettura del file:\n" + err.message + "\n\nVerifica che sia un file Excel valido (.xlsx)");
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        
+        // Installazione App - Android/Chrome
+        let deferredPrompt;
+        let isInstallable = false;
+        
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log("✅ App installabile rilevata!");
+            e.preventDefault();
+            deferredPrompt = e;
+            isInstallable = true;
+        });
+        
+        function installApp() {
+            if (deferredPrompt && isInstallable) {
+                console.log("📱 Mostrando prompt di installazione...");
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        alert('✅ App installata con successo!\n\nLa troverai in home screen!');
+                        console.log("✅ App accettata!");
+                    } else {
+                        console.log("❌ Installazione annullata dall'utente");
+                    }
+                    deferredPrompt = null;
+                    isInstallable = false;
+                }).catch(err => {
+                    console.error("Errore installazione:", err);
+                });
+            } else {
+                // Fallback per quando il prompt non è disponibile
+                alert('📱 INSTALLA COME APP\n\n🤖 Metodo 1 (Automatico):\nSe il popup di installazione non appare, usa il Metodo 2.\n\n🤖 Metodo 2 (Menu Chrome):\n1. Clicca i 3 puntini ⋮ in alto a destra\n2. Seleziona "Installa app"\n3. Scegli dove installarla\n4. ✅ Fatto!\n\n💡 L\'app sarà accessibile dalla home screen come un\'app normale!');
+                console.log("ℹ️ Prompt non disponibile - mostrando istruzioni fallback");
+            }
+        }
+
+        function resetAll() {
+            localStorage.removeItem("fantacalcioData");
+            playersData = players.map(p => ({ ...p, paid: 0, status: "non-preso" }));
+            renderTable();
+        }
+
+        function updateBudget() {
+            const spent = playersData.reduce((sum, p) => sum + (p.paid || 0), 0);
+            document.getElementById("budgetSpent").textContent = spent;
+            document.getElementById("budgetRemaining").textContent = 300 - spent;
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById("tableBody");
+            tbody.innerHTML = "";
+            playersData.forEach((p, i) => {
+                const stats = statsData[p.name] || { quotazione_attuale: 0, fvm: 0 };
+                const diff = (p.paid || 0) - p.base;
+                const badges = p.badges.map(b => `<span class="badge ${b}">●</span>`).join("");
+                const row = `<tr>
+                    <td><div class="player-name">${p.name}</div>${badges}</td>
+                    <td><span class="team">${p.team}</span></td>
+                    <td><span class="role ${p.role.toLowerCase()}">${p.role}</span></td>
+                    <td>${p.base}</td>
+                    <td><input type="number" class="price-input" value="${p.paid || 0}" onchange="updatePrice(${i}, this.value)"></td>
+                    <td><span class="diff ${diff > 0 ? 'positive' : diff < 0 ? 'negative' : 'zero'}">${diff > 0 ? '+' : ''}${diff}</span></td>
+                    <td><select class="status-select" onchange="updateStatus(${i}, this.value)">
+                        <option value="non-preso" ${p.status === 'non-preso' ? 'selected' : ''}>❌</option>
+                        <option value="preso" ${p.status === 'preso' ? 'selected' : ''}>✅</option>
+                    </select></td>
+                    <td><button class="add-btn" onclick="openSwapModal(${i})">🔄</button></td>
+                </tr>`;
+                tbody.innerHTML += row;
+            });
+            updateBudget();
+        }
+
+        function updatePrice(i, val) {
+            playersData[i].paid = parseInt(val) || 0;
+            saveData();
+            renderTable();
+            applyFilters();
+        }
+
+        function updateStatus(i, val) {
+            playersData[i].status = val;
+            saveData();
+            renderTable();
+        }
+
+        function openSwapModal(idx) {
+            const p = playersData[idx];
+            document.getElementById("swapModalTitle").textContent = `Sostituisci ${p.name}`;
+            const list = document.getElementById("swapList");
+            list.innerHTML = "";
+            alternativesData.filter(a => a.role === p.role).forEach((alt, aidx) => {
+                const li = document.createElement("li");
+                li.innerHTML = `${alt.name} (${alt.team}) - ${alt.base}cr`;
+                li.onclick = () => executeSwap(idx, aidx);
+                list.appendChild(li);
+            });
+            document.getElementById("swapModal").classList.add("active");
+        }
+
+        function closeSwapModal() {
+            document.getElementById("swapModal").classList.remove("active");
+        }
+
+        function executeSwap(pidx, aidx) {
+            const removed = playersData[pidx];
+            const adding = alternativesData[aidx];
+            playersData[pidx] = { ...adding, paid: 0, status: "non-preso", badges: [] };
+            alternativesData[aidx] = removed;
+            saveData();
+            closeSwapModal();
+            renderTable();
+            renderAlternatives();
+        }
+
+        function applyFilters() {
+            const search = document.getElementById("searchInput").value.toLowerCase();
+            const role = document.getElementById("roleFilter").value;
+            const rows = document.querySelectorAll("#tableBody tr");
+            rows.forEach(row => {
+                const name = row.querySelector(".player-name").textContent.toLowerCase();
+                const r = row.querySelector(".role").textContent.trim();
+                const show = name.includes(search) && (!role || r === role);
+                row.style.display = show ? "" : "none";
+            });
+        }
+
+        function renderStats() {
+            const search = document.getElementById("searchStatsInput").value.toLowerCase();
+            const container = document.getElementById("statsContainer");
+            let html = '';
+            playersData.forEach(p => {
+                if (!p.name.toLowerCase().includes(search)) return;
+                const stats = statsData[p.name] || { quotazione_attuale: 0, fvm: 0 };
+                const diff = (p.paid || 0) - p.base;
+                html += `<div class="stat-card">
+                    <div class="stat-header">${p.name} <span class="role ${p.role.toLowerCase()}">${p.role}</span></div>
+                    <div class="stat-row"><span>${p.team}</span><span>${stats.quotazione_attuale}</span></div>
+                    <div class="stat-row"><span>Pagato:</span><span>${p.paid || 0}cr</span></div>
+                    <div class="stat-row"><span>Diff:</span><span style="color:${diff > 0 ? '#d32f2f' : '#388e3c'}">${diff > 0 ? '+' : ''}${diff}</span></div>
+                    <div class="stat-row"><span>FVM:</span><span>${stats.fvm}</span></div>
+                </div>`;
+            });
+            container.innerHTML = html || '<p style="padding:20px">Nessun risultato</p>';
+        }
+
+        function renderAlternatives() {
+            const search = document.getElementById("searchAltInput").value.toLowerCase();
+            const container = document.getElementById("alternativesContainer");
+            let html = '<div class="alt-grid">';
+            alternativesData.forEach((alt, idx) => {
+                if (!alt.name.toLowerCase().includes(search)) return;
+                html += `<div class="alt-card">
+                    <h4>${alt.name}</h4>
+                    <div class="alt-info">${alt.team}</div>
+                    <div class="alt-info">${alt.role} | ${alt.base}cr</div>
+                    <button class="add-btn" onclick="selectAlt(${idx})" style="width:100%;margin-top:6px;padding:4px">➕</button>
+                </div>`;
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function selectAlt(idx) {
+            const alt = alternativesData[idx];
+            const same = playersData.filter(p => p.role === alt.role);
+            if (same.length === 1) {
+                executeSwap(playersData.indexOf(same[0]), idx);
+                return;
+            }
+            document.getElementById("swapModalTitle").textContent = `Aggiungi ${alt.name}`;
+            const list = document.getElementById("swapList");
+            list.innerHTML = "";
+            same.forEach(p => {
+                const li = document.createElement("li");
+                li.innerHTML = `${p.name} (${p.team}) - ${p.base}cr`;
+                li.onclick = () => executeSwap(playersData.indexOf(p), idx);
+                list.appendChild(li);
+            });
+            document.getElementById("swapModal").classList.add("active");
+        }
+
+        function switchTab(n) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab").forEach(el => el.classList.remove("active"));
+            document.getElementById("tab" + n).classList.add("active");
+            document.querySelectorAll(".tab")[n].classList.add("active");
+            if (n === 1) renderStats();
+            if (n === 2) renderAlternatives();
+        }
+
+        document.getElementById("searchInput").addEventListener("input", applyFilters);
+        document.getElementById("roleFilter").addEventListener("change", applyFilters);
+        document.getElementById("searchStatsInput").addEventListener("input", renderStats);
+        document.getElementById("searchAltInput").addEventListener("input", renderAlternatives);
+        document.getElementById("excelFileInput").addEventListener("change", importExcelStats);
+        document.getElementById("fileInput").addEventListener("change", importData);
+        document.getElementById("swapModal").addEventListener("click", function(e) {
+            if (e.target === this) closeSwapModal();
+        });
+
+        loadData();
+        renderTable();
+    </script>
+</body>
+</html>
