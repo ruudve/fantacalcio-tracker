@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantacalcio PRO</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: #667eea; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { width: 95%; max-width: 500px; }
+        .box { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        h1 { color: #667eea; text-align: center; margin-bottom: 20px; }
+        .buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .btn { padding: 12px; border: 2px solid #667eea; background: white; color: #667eea; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s; }
+        .btn.active { background: #667eea; color: white; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        .submit { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .hidden { display: none; }
+        .msg { padding: 12px; border-radius: 8px; margin-bottom: 15px; text-align: center; display: none; }
+        .msg.show { display: block; }
+        .msg.success { background: #d4edda; color: #155724; }
+        .msg.error { background: #f8d7da; color: #721c24; }
+        .app { display: none; }
+        .app.show { display: block; }
+        .header { background: #667eea; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .logout { background: rgba(255,255,255,0.2); color: white; border: 1px solid white; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- LOGIN/REGISTER -->
+        <div id="authScreen" class="box">
+            <div class="buttons">
+                <button class="btn active" onclick="switchMode('login')">🔐 Login</button>
+                <button class="btn" onclick="switchMode('register')">📝 Registrati</button>
+            </div>
+            <h1 id="title">Login</h1>
+            <div id="msg" class="msg"></div>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="pass" placeholder="Password">
+            <input type="text" id="name" placeholder="Nome utente" class="hidden">
+            <button class="submit" onclick="submitAuth()">🔐 Accedi</button>
+        </div>
+
+        <!-- APP -->
+        <div id="appScreen" class="app">
+            <div class="header">
+                <h1>⚽ Fantacalcio PRO</h1>
+                <button class="logout" onclick="logoutUser()">Logout</button>
+            </div>
+            <div class="box">
+                <h2>📋 Rosa</h2>
+                <p>Crediti: <strong id="crediti">0</strong>/300</p>
+                <div id="rosa" style="margin-top: 15px;"></div>
+                <hr style="margin: 20px 0;">
+                <h2>✏️ Aggiungi Giocatore</h2>
+                <input type="text" id="pName" placeholder="Nome">
+                <select id="pRole">
+                    <option value="">Ruolo</option>
+                    <option value="P">Portiere</option>
+                    <option value="D">Difensore</option>
+                    <option value="C">Centrocampista</option>
+                    <option value="A">Attaccante</option>
+                </select>
+                <select id="pTeam">
+                    <option value="">Squadra</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Juve">Juventus</option>
+                    <option value="Napoli">Napoli</option>
+                    <option value="Milan">Milan</option>
+                </select>
+                <input type="number" id="pCred" placeholder="Crediti">
+                <button class="submit" onclick="addPlayer()">✅ Aggiungi</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js"></script>
+
+    <script>
+        let mode = 'login';
+        let user = null;
+        let players = [];
+
+        const config = {
+            apiKey: "AIzaSyC_jVxTyAiK8R2fC785C8nCQ0Gnr0nZjBtA",
+            authDomain: "fantacalcio-pro-8e203.firebaseapp.com",
+            projectId: "fantacalcio-pro-8e203",
+            storageBucket: "fantacalcio-pro-8e203.firebasestorage.app",
+            messagingSenderId: "258140309935",
+            appId: "1:258140309935:web:f671d0c437c9a82a1b075a"
+        };
+
+        firebase.initializeApp(config);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        firebase.auth().onAuthStateChanged(u => {
+            if (u) {
+                user = u;
+                document.getElementById('authScreen').style.display = 'none';
+                document.getElementById('appScreen').classList.add('show');
+                loadPlayers();
+            } else {
+                user = null;
+                document.getElementById('authScreen').style.display = 'block';
+                document.getElementById('appScreen').classList.remove('show');
+            }
+        });
+
+        function switchMode(m) {
+            mode = m;
+            const btns = document.querySelectorAll('.btn');
+            btns.forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('title').textContent = m === 'login' ? 'Login' : 'Crea Account';
+            document.getElementById('name').classList.toggle('hidden', m !== 'register');
+            document.querySelector('.submit').textContent = m === 'login' ? '🔐 Accedi' : '📝 Registrati';
+        }
+
+        function submitAuth() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('pass').value;
+            const name = document.getElementById('name').value;
+            const msg = document.getElementById('msg');
+
+            if (!email || !pass) {
+                msg.textContent = '❌ Email e password obbligatori';
+                msg.className = 'msg show error';
+                return;
+            }
+
+            if (mode === 'register') {
+                if (!name) {
+                    msg.textContent = '❌ Nome obbligatorio';
+                    msg.className = 'msg show error';
+                    return;
+                }
+                auth.createUserWithEmailAndPassword(email, pass)
+                    .then(r => r.user.updateProfile({displayName: name}))
+                    .then(() => {
+                        msg.textContent = '✅ Account creato!';
+                        msg.className = 'msg show success';
+                    })
+                    .catch(e => {
+                        msg.textContent = '❌ ' + e.message;
+                        msg.className = 'msg show error';
+                    });
+            } else {
+                auth.signInWithEmailAndPassword(email, pass)
+                    .then(() => {
+                        msg.textContent = '✅ Login riuscito!';
+                        msg.className = 'msg show success';
+                    })
+                    .catch(e => {
+                        msg.textContent = '❌ ' + e.message;
+                        msg.className = 'msg show error';
+                    });
+            }
+        }
+
+        function addPlayer() {
+            const name = document.getElementById('pName').value;
+            const role = document.getElementById('pRole').value;
+            const team = document.getElementById('pTeam').value;
+            const cred = parseInt(document.getElementById('pCred').value);
+
+            if (!name || !role || !team || !cred) return alert('Compila tutto!');
+
+            const total = players.reduce((s, p) => s + p.cred, 0);
+            if (total + cred > 300) return alert('Max 300 crediti!');
+
+            players.push({id: Date.now(), name, role, team, cred});
+            savePlayers();
+        }
+
+        function removePlayer(id) {
+            players = players.filter(p => p.id !== id);
+            savePlayers();
+        }
+
+        async function savePlayers() {
+            if (!user) return;
+            await db.collection('users').doc(user.uid).set({email: user.email, players});
+            renderPlayers();
+            document.getElementById('pName').value = '';
+            document.getElementById('pRole').value = '';
+            document.getElementById('pTeam').value = '';
+            document.getElementById('pCred').value = '';
+        }
+
+        async function loadPlayers() {
+            if (!user) return;
+            const doc = await db.collection('users').doc(user.uid).get();
+            players = doc.exists && doc.data().players ? doc.data().players : [];
+            renderPlayers();
+        }
+
+        function renderPlayers() {
+            const cred = players.reduce((s, p) => s + p.cred, 0);
+            document.getElementById('crediti').textContent = cred;
+            const rosa = document.getElementById('rosa');
+            rosa.innerHTML = players.length === 0 ? '<p style="color: #999;">Nessun giocatore</p>' : players.map(p => 
+                `<div style="display: flex; justify-content: space-between; padding: 10px; background: #f9f9f9; margin-bottom: 10px; border-radius: 8px;">
+                    <div><strong>${p.name}</strong><br><small>${p.role} | ${p.team}</small></div>
+                    <div style="text-align: right;"><strong>${p.cred}cr</strong><br><button onclick="removePlayer(${p.id})" style="background: #ff6b6b; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">❌</button></div>
+                </div>`
+            ).join('');
+        }
+
+        function logoutUser() {
+            auth.signOut();
+        }
+    </script>
+</body>
+</html>
