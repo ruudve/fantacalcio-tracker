@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantacalcio PRO - Tracker App</title>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 95%;
+        }
+
+        /* ===== LOGIN/REGISTER ===== */
+        .auth-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .auth-container.active {
+            display: flex;
+        }
+
+        .auth-box {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+
+        .auth-box h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .auth-box input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .auth-box button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: background 0.3s;
+        }
+
+        .auth-box button:hover {
+            background: #764ba2;
+        }
+
+        .auth-toggle {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+            display: none;
+        }
+
+        .auth-toggle a {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .auth-mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .mode-btn {
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* ===== MAIN APP ===== */
+        .app-container {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .app-container.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .app-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .app-header h1 {
+            font-size: 24px;
+        }
+
+        .user-info {
+            text-align: right;
+        }
+
+        .user-info p {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            background: #f9f9f9;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab:hover {
+            background: #f0f0f0;
+        }
+
+        .tab.active {
+            background: white;
+            border-bottom-color: #667eea;
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 30px;
+            min-height: 500px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ===== ROSA TAB ===== */
+        .rosa-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .player-card {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .player-info {
+            flex: 1;
+        }
+
+        .player-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .player-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .player-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: opacity 0.3s;
+        }
+
+        .btn-remove {
+            background: #ff6b6b;
+            color: white;
+        }
+
+        .btn-remove:hover {
+            opacity: 0.8;
+        }
+
+        /* ===== EDITOR TAB ===== */
+        .editor-section {
+            background: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .editor-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #764ba2;
+        }
+
+        /* ===== STATS TAB ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* ===== MESSAGE ===== */
+        .message {
+            display: none;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+            }
+
+            .tab {
+                flex: 0 1 25%;
+                padding: 10px;
+                font-size: 12px;
+            }
+
+            .rosa-list {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- AUTH CONTAINER -->
+    <div class="auth-container active" id="authContainer">
+        <div class="auth-box">
+            <div class="auth-mode-selector">
+                <button class="mode-btn active" onclick="setAuthMode('login')">🔐 Login</button>
+                <button class="mode-btn" onclick="setAuthMode('register')">📝 Registrati</button>
+            </div>
+
+            <h2 id="authTitle">Login</h2>
+            <div class="message" id="authMessage"></div>
+            
+            <input type="email" id="authEmail" placeholder="Email" required>
+            <input type="password" id="authPassword" placeholder="Password" required>
+            <input type="text" id="authName" placeholder="Nome utente" style="display:none;">
+            
+            <button id="authSubmitBtn" onclick="handleAuth()">Accedi</button>
+
+            <div style="margin: 20px 0; text-align: center; position: relative;">
+                <div style="position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #ddd;"></div>
+                <span style="background: white; padding: 0 10px; color: #999; font-size: 12px; position: relative;">Oppure</span>
+            </div>
+
+            <button type="button" id="googleSignInBtn" style="width: 100%; padding: 12px; background: white; color: #333; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; margin-bottom: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; transition: background 0.3s;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='white'">
+                <svg width="18" height="18" viewBox="0 0 24 24">
+                    <image href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285F4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334A853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23FBBC05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23EA4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3Cpath fill='none' d='M1 1h22v22H1z'/%3E%3C/svg%3E" width="18" height="18"/>
+                Accedi con Google
+            </button>
+            
+            <div class="auth-toggle">
+                Non hai un account? <a onclick="toggleAuthMode()">Registrati</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- APP CONTAINER -->
+    <div class="app-container" id="appContainer">
+        <!-- HEADER -->
+        <div class="app-header">
+            <div>
+                <h1>⚽ Fantacalcio PRO</h1>
+            </div>
+            <div class="user-info">
+                <p id="userEmail"></p>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('rosa')">📋 Rosa</div>
+            <div class="tab" onclick="switchTab('editor')">✏️ Editor</div>
+            <div class="tab" onclick="switchTab('stats')">📊 Statistiche</div>
+            <div class="tab" onclick="switchTab('menu')">⚙️ Menu</div>
+        </div>
+
+        <!-- TAB CONTENT -->
+        <div class="container">
+            <!-- ROSA TAB -->
+            <div class="tab-content active" id="rosaTab">
+                <h2>La Tua Rosa</h2>
+                <p style="color: #666; margin-bottom: 20px;">Crediti disponibili: <strong id="creditiDisplay">0</strong> / 300</p>
+                <div id="rosaList" class="rosa-list">
+                    <p style="grid-column: 1/-1; color: #999;">Nessun giocatore aggiunto. Vai su "Editor" per iniziare!</p>
+                </div>
+            </div>
+
+            <!-- EDITOR TAB -->
+            <div class="tab-content" id="editorTab">
+                <h2>Aggiungi Giocatori</h2>
+                
+                <div class="editor-section">
+                    <h3>Nuovo Giocatore</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="playerName" placeholder="Es: Lautaro Martinez">
+                        </div>
+                        <div class="form-group">
+                            <label>Cognome</label>
+                            <input type="text" id="playerSurname" placeholder="Es: Martinez">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Ruolo</label>
+                            <select id="playerRole">
+                                <option value="">-- Seleziona ruolo --</option>
+                                <option value="P">Portiere (P)</option>
+                                <option value="D">Difensore (D)</option>
+                                <option value="C">Centrocampista (C)</option>
+                                <option value="A">Attaccante (A)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Squadra</label>
+                            <select id="playerTeam">
+                                <option value="">-- Seleziona squadra --</option>
+                                <option value="Inter">Inter</option>
+                                <option value="Juventus">Juventus</option>
+                                <option value="Napoli">Napoli</option>
+                                <option value="Milan">Milan</option>
+                                <option value="Roma">Roma</option>
+                                <option value="Lazio">Lazio</option>
+                                <option value="Atalanta">Atalanta</option>
+                                <option value="Fiorentina">Fiorentina</option>
+                                <option value="Bologna">Bologna</option>
+                                <option value="Como">Como</option>
+                                <option value="Monza">Monza</option>
+                                <option value="Genoa">Genoa</option>
+                                <option value="Cagliari">Cagliari</option>
+                                <option value="Torino">Torino</option>
+                                <option value="Parma">Parma</option>
+                                <option value="Venezia">Venezia</option>
+                                <option value="Lecce">Lecce</option>
+                                <option value="Frosinone">Frosinone</option>
+                                <option value="Udinese">Udinese</option>
+                                <option value="Sassuolo">Sassuolo</option>
+                                <option value="Empoli">Empoli</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Crediti</label>
+                            <input type="number" id="playerCrediti" placeholder="Es: 25" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label>Gol/Assist (Stagione passata)</label>
+                            <input type="text" id="playerStats" placeholder="Es: 15 gol, 6 assist">
+                        </div>
+                    </div>
+
+                    <button class="btn-primary" onclick="addPlayer()">Aggiungi Giocatore</button>
+                </div>
+
+                <div id="message" class="message"></div>
+            </div>
+
+            <!-- STATS TAB -->
+            <div class="tab-content" id="statsTab">
+                <h2>Statistiche Rosa</h2>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Giocatori</div>
+                        <div class="stat-value" id="statTotali">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Portieri</div>
+                        <div class="stat-value" id="statPortieri">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Difensori</div>
+                        <div class="stat-value" id="statDifensori">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Centrocampisti</div>
+                        <div class="stat-value" id="statCentrocampisti">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Attaccanti</div>
+                        <div class="stat-value" id="statAttaccanti">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Crediti Usati</div>
+                        <div class="stat-value" id="statCrediti">0/300</div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 30px; color: #667eea;">Squadre in Rosa</h3>
+                <div id="squadreStats" style="margin-top: 15px;">
+                    <p style="color: #999;">Nessuna squadra aggiunta</p>
+                </div>
+            </div>
+
+            <!-- MENU TAB -->
+            <div class="tab-content" id="menuTab">
+                <h2>Menu</h2>
+                
+                <div class="editor-section">
+                    <h3>Esporta Rosa</h3>
+                    <button class="btn-primary" onclick="exportRosa()">Scarica Excel</button>
+                    <p style="color: #666; margin-top: 10px; font-size: 12px;">Scarica la tua rosa in formato Excel</p>
+                </div>
+
+                <div class="editor-section">
+                    <h3>Importa Rosa</h3>
+                    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">Carica Excel</button>
+                    <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls" onchange="importRosa(event)">
+                    <p style="color: #666; margin-top: 10px; font-size: 12px;">Carica una rosa da Excel</p>
+                </div>
+
+                <div class="editor-section">
+                    <h3>Resetta Rosa</h3>
+                    <button class="btn-primary" onclick="resetRosa()" style="background: #ff6b6b;">Svuota Tutto</button>
+                    <p style="color: #666; margin-top: 10px; font-size: 12px;">⚠️ Questa azione non è reversibile!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== FIREBASE CONFIG =====
+        const firebaseConfig = {
+            apiKey: "AIzaSyC_jVxTyAiK8R2fC785C8nCQ0Gnr0nZjBtA",
+            authDomain: "fantacalcio-pro-8e203.firebaseapp.com",
+            projectId: "fantacalcio-pro-8e203",
+            storageBucket: "fantacalcio-pro-8e203.firebasestorage.app",
+            messagingSenderId: "258140309935",
+            appId: "1:258140309935:web:f671d0c437c9a82a1b075a",
+            measurementId: "G-F0EM3BJQ88"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // ===== GOOGLE SIGN-IN =====
+        document.getElementById('googleSignInBtn').addEventListener('click', handleGoogleLogin);
+
+        async function handleGoogleLogin() {
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                await auth.signInWithPopup(provider);
+                showAuthMessage('Accesso con Google riuscito!', 'success');
+            } catch (error) {
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    showAuthMessage('Errore: ' + error.message, 'error');
+                }
+            }
+        }
+
+        let currentUser = null;
+        let currentRosa = [];
+        let authMode = 'login'; // login o register
+
+        // ===== AUTH FUNCTIONS =====
+        function setAuthMode(mode) {
+            authMode = mode;
+            const title = document.getElementById('authTitle');
+            const nameInput = document.getElementById('authName');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const modeButtons = document.querySelectorAll('.mode-btn');
+
+            // Aggiorna bottoni di selezione
+            modeButtons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            if (authMode === 'register') {
+                title.textContent = 'Crea Account';
+                nameInput.style.display = 'block';
+                submitBtn.textContent = '📝 Registrati';
+            } else {
+                title.textContent = 'Login';
+                nameInput.style.display = 'none';
+                submitBtn.textContent = '🔐 Accedi';
+            }
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'register' : 'login';
+            setAuthMode(authMode);
+        }
+
+        async function handleAuth() {
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const name = document.getElementById('authName').value;
+            const messageDiv = document.getElementById('authMessage');
+
+            if (!email || !password) {
+                showAuthMessage('Compila email e password!', 'error');
+                return;
+            }
+
+            try {
+                if (authMode === 'login') {
+                    await auth.signInWithEmailAndPassword(email, password);
+                } else {
+                    if (!name) {
+                        showAuthMessage('Compila il nome utente!', 'error');
+                        return;
+                    }
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    await userCredential.user.updateProfile({ displayName: name });
+                }
+                showAuthMessage('Accesso riuscito!', 'success');
+            } catch (error) {
+                showAuthMessage('Errore: ' + error.message, 'error');
+            }
+        }
+
+        function showAuthMessage(msg, type) {
+            const messageDiv = document.getElementById('authMessage');
+            messageDiv.textContent = msg;
+            messageDiv.className = `message ${type} show`;
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        async function handleLogout() {
+            await auth.signOut();
+        }
+
+        // ===== USER STATE LISTENER =====
+        auth.onAuthStateChanged(async (user) => {
+            const authContainer = document.getElementById('authContainer');
+            const appContainer = document.getElementById('appContainer');
+
+            if (user) {
+                currentUser = user;
+                authContainer.classList.remove('active');
+                appContainer.classList.add('active');
+                
+                document.getElementById('userEmail').textContent = user.email;
+
+                // Carica rosa da Firestore
+                loadRosaFromFirestore();
+            } else {
+                currentUser = null;
+                authContainer.classList.add('active');
+                appContainer.classList.remove('active');
+                authMode = 'login';
+                toggleAuthMode();
+                
+                document.getElementById('authEmail').value = '';
+                document.getElementById('authPassword').value = '';
+                document.getElementById('authName').value = '';
+            }
+        });
+
+        // ===== TAB FUNCTIONS =====
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'stats') {
+                updateStats();
+            }
+        }
+
+        // ===== PLAYER FUNCTIONS =====
+        async function addPlayer() {
+            const name = document.getElementById('playerName').value;
+            const surname = document.getElementById('playerSurname').value;
+            const role = document.getElementById('playerRole').value;
+            const team = document.getElementById('playerTeam').value;
+            const crediti = parseInt(document.getElementById('playerCrediti').value);
+            const stats = document.getElementById('playerStats').value;
+
+            if (!name || !surname || !role || !team || !crediti) {
+                showMessage('Compila tutti i campi!', 'error');
+                return;
+            }
+
+            const totalCrediti = currentRosa.reduce((sum, p) => sum + p.crediti, 0);
+            if (totalCrediti + crediti > 300) {
+                showMessage(`Non puoi superare 300 crediti! Hai ${300 - totalCrediti} crediti disponibili.`, 'error');
+                return;
+            }
+
+            const player = {
+                id: Date.now().toString(),
+                name: name + ' ' + surname,
+                role,
+                team,
+                crediti,
+                stats
+            };
+
+            currentRosa.push(player);
+            saveRosaToFirestore();
+            showMessage('Giocatore aggiunto!', 'success');
+
+            // Reset form
+            document.getElementById('playerName').value = '';
+            document.getElementById('playerSurname').value = '';
+            document.getElementById('playerRole').value = '';
+            document.getElementById('playerTeam').value = '';
+            document.getElementById('playerCrediti').value = '';
+            document.getElementById('playerStats').value = '';
+        }
+
+        async function removePlayer(playerId) {
+            currentRosa = currentRosa.filter(p => p.id !== playerId);
+            await saveRosaToFirestore();
+            renderRosa();
+        }
+
+        function renderRosa() {
+            const rosaList = document.getElementById('rosaList');
+            
+            if (currentRosa.length === 0) {
+                rosaList.innerHTML = '<p style="grid-column: 1/-1; color: #999;">Nessun giocatore aggiunto.</p>';
+                document.getElementById('creditiDisplay').textContent = '0';
+                return;
+            }
+
+            let html = '';
+            currentRosa.forEach(player => {
+                html += `
+                    <div class="player-card">
+                        <div class="player-info">
+                            <div class="player-name">${player.name}</div>
+                            <div class="player-details">
+                                <strong>${player.role}</strong> | ${player.team} | <strong>${player.crediti} cr</strong>
+                                ${player.stats ? `<br><small>${player.stats}</small>` : ''}
+                            </div>
+                        </div>
+                        <div class="player-actions">
+                            <button class="btn-small btn-remove" onclick="removePlayer('${player.id}')">Rimuovi</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            rosaList.innerHTML = html;
+
+            const totalCrediti = currentRosa.reduce((sum, p) => sum + p.crediti, 0);
+            document.getElementById('creditiDisplay').textContent = totalCrediti;
+        }
+
+        function updateStats() {
+            const totali = currentRosa.length;
+            const portieri = currentRosa.filter(p => p.role === 'P').length;
+            const difensori = currentRosa.filter(p => p.role === 'D').length;
+            const centrocampisti = currentRosa.filter(p => p.role === 'C').length;
+            const attaccanti = currentRosa.filter(p => p.role === 'A').length;
+            const crediti = currentRosa.reduce((sum, p) => sum + p.crediti, 0);
+
+            document.getElementById('statTotali').textContent = totali;
+            document.getElementById('statPortieri').textContent = portieri;
+            document.getElementById('statDifensori').textContent = difensori;
+            document.getElementById('statCentrocampisti').textContent = centrocampisti;
+            document.getElementById('statAttaccanti').textContent = attaccanti;
+            document.getElementById('statCrediti').textContent = crediti + '/300';
+
+            // Squadre
+            const squadre = {};
+            currentRosa.forEach(p => {
+                squadre[p.team] = (squadre[p.team] || 0) + 1;
+            });
+
+            let squadreHtml = '';
+            Object.entries(squadre).sort((a, b) => b[1] - a[1]).forEach(([squadra, count]) => {
+                squadreHtml += `<p style="padding: 8px 0; border-bottom: 1px solid #eee;"><strong>${squadra}</strong>: ${count} giocatori</p>`;
+            });
+
+            document.getElementById('squadreStats').innerHTML = squadreHtml;
+        }
+
+        function showMessage(msg, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = msg;
+            messageDiv.className = `message ${type} show`;
+            setTimeout(() => {
+                messageDiv.classList.remove('show');
+            }, 3000);
+        }
+
+        // ===== FIRESTORE FUNCTIONS =====
+        async function saveRosaToFirestore() {
+            if (!currentUser) return;
+
+            try {
+                await db.collection('users').doc(currentUser.uid).set({
+                    email: currentUser.email,
+                    rosa: currentRosa,
+                    lastUpdate: new Date()
+                });
+                renderRosa();
+            } catch (error) {
+                console.error('Errore salvataggio:', error);
+                showMessage('Errore nel salvataggio!', 'error');
+            }
+        }
+
+        async function loadRosaFromFirestore() {
+            if (!currentUser) return;
+
+            try {
+                const doc = await db.collection('users').doc(currentUser.uid).get();
+                if (doc.exists && doc.data().rosa) {
+                    currentRosa = doc.data().rosa;
+                } else {
+                    currentRosa = [];
+                }
+                renderRosa();
+            } catch (error) {
+                console.error('Errore caricamento:', error);
+            }
+        }
+
+        // ===== EXPORT/IMPORT =====
+        function exportRosa() {
+            if (currentRosa.length === 0) {
+                alert('Nessun giocatore da esportare!');
+                return;
+            }
+
+            let csv = 'Nome,Ruolo,Squadra,Crediti,Statistiche\n';
+            currentRosa.forEach(p => {
+                csv += `"${p.name}","${p.role}","${p.team}",${p.crediti},"${p.stats}"\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'rosa-fantacalcio.csv';
+            a.click();
+        }
+
+        function importRosa(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const csv = e.target.result;
+                const lines = csv.split('\n');
+                
+                currentRosa = [];
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    
+                    const matches = lines[i].match(/"([^"]*)"/g);
+                    if (matches && matches.length >= 5) {
+                        currentRosa.push({
+                            id: Date.now().toString() + i,
+                            name: matches[0].replace(/"/g, ''),
+                            role: matches[1].replace(/"/g, ''),
+                            team: matches[2].replace(/"/g, ''),
+                            crediti: parseInt(matches[3]),
+                            stats: matches[4].replace(/"/g, '')
+                        });
+                    }
+                }
+
+                saveRosaToFirestore();
+                showMessage('Rosa importata!', 'success');
+            };
+            reader.readAsText(file);
+        }
+
+        function resetRosa() {
+            if (!confirm('Sei sicuro? Questa azione eliminerà tutta la rosa!')) return;
+            
+            currentRosa = [];
+            saveRosaToFirestore();
+            showMessage('Rosa azzerata!', 'success');
+        }
+    </script>
+</body>
+</html>
